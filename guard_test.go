@@ -1,6 +1,7 @@
 package guard_test
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/danikarik/guard"
 	"github.com/dgrijalva/jwt-go"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,6 +103,8 @@ func TestAuthenticate(t *testing.T) {
 
 			r.NotNil(accessCookie)
 			r.NotNil(csrfCookie)
+			r.NotEmpty(resp.Header.Get("X-XSRF-TOKEN"))
+			r.Equal(resp.Header.Get("X-XSRF-TOKEN"), csrfCookie.Value)
 
 			var claims guard.UserClaims
 			_, err = jwt.ParseWithClaims(accessCookie.Value, &claims, func(t *jwt.Token) (interface{}, error) {
@@ -143,6 +147,87 @@ func TestAuthenticate(t *testing.T) {
 				now := time.Now().UTC()
 				r.True(accessCookie.Expires.Before(now.Add(tc.TTL)))
 				r.True(csrfCookie.Expires.Before(now.Add(tc.TTL)))
+			}
+		})
+	}
+}
+
+func testGuardResponse(t *testing.T) (*guard.Guard, *http.Cookie, *http.Cookie) {
+	r := require.New(t)
+
+	guarder, err := guard.NewGuard([]byte("test"))
+	r.NoError(err)
+
+	w := httptest.NewRecorder()
+	err = guarder.Authenticate(w, uuid.NewV4().String())
+	r.NoError(err)
+
+	var (
+		resp         = w.Result()
+		accessCookie *http.Cookie
+		csrfCookie   *http.Cookie
+	)
+
+	for _, cookie := range resp.Cookies() {
+		switch {
+		case cookie.Name == "guard_token":
+			accessCookie = cookie
+		case cookie.Name == "XSRF-TOKEN":
+			csrfCookie = cookie
+		}
+	}
+
+	r.NotNil(accessCookie)
+	r.NotNil(csrfCookie)
+	r.NotEmpty(resp.Header.Get("X-XSRF-TOKEN"))
+	r.Equal(resp.Header.Get("X-XSRF-TOKEN"), csrfCookie.Value)
+
+	return guarder, accessCookie, csrfCookie
+}
+
+func TestValidate(t *testing.T) {
+	guarder, accessCookie, csrfCookie := testGuardResponse(t)
+
+	testCases := []struct {
+		Name         string
+		AccessCookie *http.Cookie
+		CSRFCookie   *http.Cookie
+		Err          error
+	}{
+		{
+			Name:         "OK",
+			AccessCookie: accessCookie,
+			CSRFCookie:   csrfCookie,
+		},
+		{
+			Name: "WithoutAccessCookie",
+			Err:  guard.ErrInvalidAccessToken,
+		},
+		{
+			Name:         "WithoutCSRFCookie",
+			AccessCookie: accessCookie,
+			Err:          guard.ErrInvalidCSRFToken,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			r := require.New(t)
+
+			req := httptest.NewRequest("GET", "/", nil)
+			if tc.AccessCookie != nil {
+				req.AddCookie(tc.AccessCookie)
+			}
+			if tc.CSRFCookie != nil {
+				req.Header.Set("X-XSRF-TOKEN", tc.CSRFCookie.Value)
+			}
+
+			err := guarder.Validate(req)
+			if tc.Err != nil {
+				r.Error(err)
+				r.True(errors.Is(tc.Err, err))
+			} else {
+				r.NoError(err)
 			}
 		})
 	}

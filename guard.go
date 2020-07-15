@@ -12,13 +12,18 @@ import (
 )
 
 var (
-	ErrEmptySecret  = errors.New("guard: empty signing secret")
-	ErrEmptySubject = errors.New("guard: empty subject")
+	ErrEmptySecret             = errors.New("guard: empty signing secret")
+	ErrEmptySubject            = errors.New("guard: empty subject")
+	ErrInvalidAccessToken      = errors.New("guard: missing or malformed access token")
+	ErrInvalidCSRFToken        = errors.New("guard: missing or invalid csrf token")
+	ErrUnexpectedSigningMethod = errors.New("guard: unexpected signing method")
+	// ErrInvalidClaims           = errors.New("guard: token does not match claims")
 )
 
 const (
 	_defaultAccessCookieName = "guard_token"
 	_defaultCSRFCookieName   = "XSRF-TOKEN"
+	_defaultCSRFHeaderName   = "X-XSRF-TOKEN"
 	_defaultCookiePath       = "/"
 	_defaultCookieTime       = 7 * 24 * time.Hour
 )
@@ -68,6 +73,13 @@ func (g *Guard) saveCookies(w http.ResponseWriter, cookies ...*http.Cookie) erro
 	return nil
 }
 
+func (g *Guard) getSigningSecret(token *jwt.Token) (interface{}, error) {
+	if token.Method != jwt.SigningMethodHS256 {
+		return nil, ErrUnexpectedSigningMethod
+	}
+	return g.secret, nil
+}
+
 func (g *Guard) Authenticate(w http.ResponseWriter, subject string) error {
 	if subject == "" {
 		return ErrEmptySubject
@@ -88,6 +100,10 @@ func (g *Guard) Authenticate(w http.ResponseWriter, subject string) error {
 		return fmt.Errorf("guard: signing token %w", err)
 	}
 
+	// Response with CSRF token in header.
+	w.Header().Set(_defaultCSRFHeaderName, claims.CSRFToken)
+
+	// Save access token and CSRF cookies.
 	return g.saveCookies(w,
 		&http.Cookie{
 			Name:     g.accessCookieName,
@@ -108,4 +124,33 @@ func (g *Guard) Authenticate(w http.ResponseWriter, subject string) error {
 			HttpOnly: false,
 		},
 	)
+}
+
+func (g *Guard) Validate(r *http.Request) error {
+	cookie, err := r.Cookie(g.accessCookieName)
+	if errors.Is(err, http.ErrNoCookie) {
+		return ErrInvalidAccessToken
+	}
+	if err != nil {
+		return err
+	}
+	if cookie.Value == "" {
+		return ErrInvalidAccessToken
+	}
+
+	claims := &UserClaims{}
+	token, err := jwt.ParseWithClaims(cookie.Value, claims, g.getSigningSecret)
+	if err != nil {
+		return ErrInvalidAccessToken
+	}
+	if err := token.Claims.Valid(); err != nil {
+		return ErrInvalidAccessToken
+	}
+
+	header := r.Header.Get(_defaultCSRFHeaderName)
+	if header == "" || header != claims.CSRFToken {
+		return ErrInvalidCSRFToken
+	}
+
+	return nil
 }

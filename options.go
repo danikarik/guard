@@ -1,6 +1,16 @@
 package guard
 
-import "time"
+import (
+	"errors"
+	"strings"
+	"time"
+)
+
+var (
+	ErrEmptyCookieName   = errors.New("guard: cookie name cannot be blank")
+	ErrInvalidCookiePath = errors.New("guard: invalid cookie path")
+	ErrInvalidCookieTTL  = errors.New("guard: cookie expiration cannot be zero")
+)
 
 type GuardOption interface {
 	apply(g *Guard) error
@@ -20,7 +30,11 @@ func WithSecure(flag bool) GuardOption {
 type accessCookieOption string
 
 func (o accessCookieOption) apply(g *Guard) error {
-	g.accessCookieName = string(o)
+	val := string(o)
+	if val == "" {
+		return ErrEmptyCookieName
+	}
+	g.accessCookieName = val
 	return nil
 }
 
@@ -31,7 +45,11 @@ func WithAccessCookieName(name string) GuardOption {
 type csrfCookieOption string
 
 func (o csrfCookieOption) apply(g *Guard) error {
-	g.csrfCookieName = string(o)
+	val := string(o)
+	if val == "" {
+		return ErrEmptyCookieName
+	}
+	g.csrfCookieName = val
 	return nil
 }
 
@@ -42,7 +60,11 @@ func WithCSRFCookieName(name string) GuardOption {
 type pathOption string
 
 func (o pathOption) apply(g *Guard) error {
-	g.path = string(o)
+	val := string(o)
+	if val == "" || !strings.HasPrefix(val, "/") {
+		return ErrInvalidCookiePath
+	}
+	g.path = val
 	return nil
 }
 
@@ -75,7 +97,11 @@ func WithDomain(name string) GuardOption {
 type ttlOption time.Duration
 
 func (o ttlOption) apply(g *Guard) error {
-	g.ttl = time.Duration(o)
+	val := time.Duration(o)
+	if val == 0 {
+		return ErrInvalidCookieTTL
+	}
+	g.ttl = val
 	return nil
 }
 
