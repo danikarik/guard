@@ -17,7 +17,6 @@ var (
 	ErrInvalidAccessToken      = errors.New("guard: missing or malformed access token")
 	ErrInvalidCSRFToken        = errors.New("guard: missing or invalid csrf token")
 	ErrUnexpectedSigningMethod = errors.New("guard: unexpected signing method")
-	// ErrInvalidClaims           = errors.New("guard: token does not match claims")
 )
 
 const (
@@ -29,16 +28,14 @@ const (
 )
 
 type Guard struct {
-	secret []byte
-	secure bool
-
+	secret           []byte
+	secure           bool
 	accessCookieName string
 	csrfCookieName   string
-
-	issuer string
-	path   string
-	domain string
-	ttl    time.Duration
+	issuer           string
+	path             string
+	domain           string
+	ttl              time.Duration
 }
 
 func NewGuard(secret []byte, opts ...GuardOption) (*Guard, error) {
