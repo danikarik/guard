@@ -39,7 +39,7 @@ type Guard struct {
 	ttl              time.Duration
 }
 
-func NewGuard(secret []byte, opts ...GuardOption) (*Guard, error) {
+func NewGuard(secret []byte, opts ...Option) (*Guard, error) {
 	if len(secret) == 0 {
 		return nil, ErrEmptySecret
 	}

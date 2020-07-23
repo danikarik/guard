@@ -53,7 +53,7 @@ func TestAuthenticate(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			r := require.New(t)
 
-			opts := []guard.GuardOption{}
+			opts := []guard.Option{}
 			if tc.Secure {
 				opts = append(opts, guard.WithSecure(true))
 			}

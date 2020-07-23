@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGuardOptions(t *testing.T) {
+func TestOptions(t *testing.T) {
 	testCases := []struct {
 		Name   string
-		Option guard.GuardOption
+		Option guard.Option
 		Err    error
 	}{
 		{

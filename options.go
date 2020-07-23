@@ -7,13 +7,18 @@ import (
 )
 
 var (
-	ErrEmptyCookieName   = errors.New("guard: cookie name cannot be blank")
-	ErrEmptyHeaderName   = errors.New("guard: header name cannot be blank")
+	// ErrEmptyCookieName raises if WithAccessCookieName or WithCSRFCookieName gets empty cookie name.
+	ErrEmptyCookieName = errors.New("guard: cookie name cannot be blank")
+	// ErrEmptyHeaderName raises if WithCSRFHeaderName gets empty header name.
+	ErrEmptyHeaderName = errors.New("guard: header name cannot be blank")
+	// ErrInvalidCookiePath raises if WithPath gets invalid cookie path.
 	ErrInvalidCookiePath = errors.New("guard: invalid cookie path")
-	ErrInvalidCookieTTL  = errors.New("guard: cookie expiration cannot be zero")
+	// ErrInvalidCookieTTL raises if WithTTL gets zero cookie expiration duration.
+	ErrInvalidCookieTTL = errors.New("guard: cookie expiration cannot be zero")
 )
 
-type GuardOption interface {
+// Option configures a Guard.
+type Option interface {
 	apply(g *Guard) error
 }
 
@@ -24,7 +29,8 @@ func (o secureOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithSecure(flag bool) GuardOption {
+// WithSecure sets cookie secure flag.
+func WithSecure(flag bool) Option {
 	return secureOption(flag)
 }
 
@@ -39,7 +45,8 @@ func (o accessCookieOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithAccessCookieName(name string) GuardOption {
+// WithAccessCookieName sets access cookie name.
+func WithAccessCookieName(name string) Option {
 	return accessCookieOption(name)
 }
 
@@ -54,7 +61,8 @@ func (o csrfCookieOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithCSRFCookieName(name string) GuardOption {
+// WithCSRFCookieName sets csrf cookie name.
+func WithCSRFCookieName(name string) Option {
 	return csrfCookieOption(name)
 }
 
@@ -69,7 +77,8 @@ func (o csrfHeaderOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithCSRFHeaderName(name string) GuardOption {
+// WithCSRFHeaderName sets csrf header name.
+func WithCSRFHeaderName(name string) Option {
 	return csrfHeaderOption(name)
 }
 
@@ -84,7 +93,8 @@ func (o pathOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithPath(path string) GuardOption {
+// WithPath sets cookie path.
+func WithPath(path string) Option {
 	return pathOption(path)
 }
 
@@ -95,7 +105,8 @@ func (o issuerOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithIssuer(name string) GuardOption {
+// WithIssuer sets jwt token issuer.
+func WithIssuer(name string) Option {
 	return issuerOption(name)
 }
 
@@ -106,7 +117,8 @@ func (o domainOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithDomain(name string) GuardOption {
+// WithDomain sets cookie domain.
+func WithDomain(name string) Option {
 	return domainOption(name)
 }
 
@@ -121,6 +133,7 @@ func (o ttlOption) apply(g *Guard) error {
 	return nil
 }
 
-func WithTTL(ttl time.Duration) GuardOption {
+// WithTTL sets cookie expiration time.
+func WithTTL(ttl time.Duration) Option {
 	return ttlOption(ttl)
 }
