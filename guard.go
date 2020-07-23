@@ -32,6 +32,7 @@ type Guard struct {
 	secure           bool
 	accessCookieName string
 	csrfCookieName   string
+	csrfHeaderName   string
 	issuer           string
 	path             string
 	domain           string
@@ -49,6 +50,7 @@ func NewGuard(secret []byte, opts ...GuardOption) (*Guard, error) {
 		secure:           true,
 		accessCookieName: _defaultAccessCookieName,
 		csrfCookieName:   _defaultCSRFCookieName,
+		csrfHeaderName:   _defaultCSRFHeaderName,
 		path:             _defaultCookiePath,
 		ttl:              _defaultCookieTime,
 	}
@@ -98,7 +100,7 @@ func (g *Guard) Authenticate(w http.ResponseWriter, subject string) error {
 	}
 
 	// Response with CSRF token in header.
-	w.Header().Set(_defaultCSRFHeaderName, claims.CSRFToken)
+	w.Header().Set(g.csrfHeaderName, claims.CSRFToken)
 
 	// Save access token and CSRF cookies.
 	return g.saveCookies(w,
@@ -144,7 +146,7 @@ func (g *Guard) Validate(r *http.Request) error {
 		return ErrInvalidAccessToken
 	}
 
-	header := r.Header.Get(_defaultCSRFHeaderName)
+	header := r.Header.Get(g.csrfHeaderName)
 	if header == "" || header != claims.CSRFToken {
 		return ErrInvalidCSRFToken
 	}

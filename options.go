@@ -8,6 +8,7 @@ import (
 
 var (
 	ErrEmptyCookieName   = errors.New("guard: cookie name cannot be blank")
+	ErrEmptyHeaderName   = errors.New("guard: header name cannot be blank")
 	ErrInvalidCookiePath = errors.New("guard: invalid cookie path")
 	ErrInvalidCookieTTL  = errors.New("guard: cookie expiration cannot be zero")
 )
@@ -55,6 +56,21 @@ func (o csrfCookieOption) apply(g *Guard) error {
 
 func WithCSRFCookieName(name string) GuardOption {
 	return csrfCookieOption(name)
+}
+
+type csrfHeaderOption string
+
+func (o csrfHeaderOption) apply(g *Guard) error {
+	val := string(o)
+	if val == "" {
+		return ErrEmptyHeaderName
+	}
+	g.csrfHeaderName = val
+	return nil
+}
+
+func WithCSRFHeaderName(name string) GuardOption {
+	return csrfHeaderOption(name)
 }
 
 type pathOption string

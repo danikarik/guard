@@ -25,6 +25,11 @@ func TestGuardOptions(t *testing.T) {
 			Err:    guard.ErrEmptyCookieName,
 		},
 		{
+			Name:   "WithEmptyCSRFHeaderName",
+			Option: guard.WithCSRFHeaderName(""),
+			Err:    guard.ErrEmptyHeaderName,
+		},
+		{
 			Name:   "WithEmptyPath",
 			Option: guard.WithPath(""),
 			Err:    guard.ErrInvalidCookiePath,
