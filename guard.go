@@ -11,14 +11,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-var (
-	ErrEmptySecret             = errors.New("guard: empty signing secret")
-	ErrEmptySubject            = errors.New("guard: empty subject")
-	ErrInvalidAccessToken      = errors.New("guard: missing or malformed access token")
-	ErrInvalidCSRFToken        = errors.New("guard: missing or invalid csrf token")
-	ErrUnexpectedSigningMethod = errors.New("guard: unexpected signing method")
-)
-
 const (
 	_defaultAccessCookieName = "guard_token"
 	_defaultCSRFCookieName   = "XSRF-TOKEN"
@@ -27,6 +19,20 @@ const (
 	_defaultCookieTime       = 7 * 24 * time.Hour
 )
 
+var (
+	// ErrEmptySecret when NewGuard takes empty secret.
+	ErrEmptySecret = errors.New("guard: empty signing secret")
+	// ErrEmptySubject when Authenticate takes empty subject.
+	ErrEmptySubject = errors.New("guard: empty subject")
+	// ErrInvalidAccessToken when Validate cannot get access token cookie.
+	ErrInvalidAccessToken = errors.New("guard: missing or malformed access token")
+	// ErrInvalidCSRFToken when Validate cannot get csrf token or token mismatches with original.
+	ErrInvalidCSRFToken = errors.New("guard: missing or invalid csrf token")
+	// ErrUnexpectedSigningMethod when signing method differs from default.
+	ErrUnexpectedSigningMethod = errors.New("guard: unexpected signing method")
+)
+
+// Guard is used to authenticate response and validate request.
 type Guard struct {
 	secret           []byte
 	secure           bool
@@ -39,6 +45,7 @@ type Guard struct {
 	ttl              time.Duration
 }
 
+// NewGuard returns a new instance of Guard.
 func NewGuard(secret []byte, opts ...Option) (*Guard, error) {
 	if len(secret) == 0 {
 		return nil, ErrEmptySecret
@@ -79,6 +86,7 @@ func (g *Guard) getSigningSecret(token *jwt.Token) (interface{}, error) {
 	return g.secret, nil
 }
 
+// Authenticate saves subject into access token cookie with csrf token.
 func (g *Guard) Authenticate(w http.ResponseWriter, subject string) error {
 	if subject == "" {
 		return ErrEmptySubject
@@ -125,31 +133,32 @@ func (g *Guard) Authenticate(w http.ResponseWriter, subject string) error {
 	)
 }
 
-func (g *Guard) Validate(r *http.Request) error {
+// Validate incoming request and returns extracted subject.
+func (g *Guard) Validate(r *http.Request) (string, error) {
 	cookie, err := r.Cookie(g.accessCookieName)
 	if errors.Is(err, http.ErrNoCookie) {
-		return ErrInvalidAccessToken
+		return "", ErrInvalidAccessToken
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	if cookie.Value == "" {
-		return ErrInvalidAccessToken
+		return "", ErrInvalidAccessToken
 	}
 
 	claims := &UserClaims{}
 	token, err := jwt.ParseWithClaims(cookie.Value, claims, g.getSigningSecret)
 	if err != nil {
-		return ErrInvalidAccessToken
+		return "", ErrInvalidAccessToken
 	}
 	if err := token.Claims.Valid(); err != nil {
-		return ErrInvalidAccessToken
+		return "", ErrInvalidAccessToken
 	}
 
 	header := r.Header.Get(g.csrfHeaderName)
 	if header == "" || header != claims.CSRFToken {
-		return ErrInvalidCSRFToken
+		return "", ErrInvalidCSRFToken
 	}
 
-	return nil
+	return claims.Subject, nil
 }

@@ -222,12 +222,13 @@ func TestValidate(t *testing.T) {
 				req.Header.Set("X-XSRF-TOKEN", tc.CSRFCookie.Value)
 			}
 
-			err := guarder.Validate(req)
+			sub, err := guarder.Validate(req)
 			if tc.Err != nil {
 				r.Error(err)
 				r.True(errors.Is(tc.Err, err))
 			} else {
 				r.NoError(err)
+				r.NotEmpty(sub)
 			}
 		})
 	}
